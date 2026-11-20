@@ -7,10 +7,10 @@ export const num = (v: number | null | undefined, digits = 2): string =>
   v == null || Number.isNaN(v) ? '—' : v.toFixed(digits)
 
 export const CONFIDENCE_LABEL: Record<Confidence, string> = {
-  high: 'Confianza alta',
-  moderate: 'Confianza moderada',
-  limited: 'Confianza limitada',
-  none: 'Sin datos',
+  high: 'Muestra amplia',
+  moderate: 'Muestra media',
+  limited: 'Muestra limitada',
+  none: 'Sin datos directos',
 }
 
 export const STATUS_LABEL: Record<Status, string> = {

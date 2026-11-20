@@ -4,6 +4,7 @@ import { DistributionChart, PlayActionChart, PressureChart } from './components/
 import Configurator from './components/Configurator'
 import { RateRow, ValueRow } from './components/Metrics'
 import { Signals, Warnings } from './components/Signals'
+import { CoachingConsiderations, TacticalSummary } from './components/TacticalInsights'
 import { CONFIDENCE_LABEL, DISTANCE_LABEL, SCORE_LABEL, ZONE_LABEL } from './format'
 import type { Confidence, MatchupQuery, MatchupResponse } from './types'
 
@@ -46,7 +47,7 @@ function Panel({ title, team, sample, confidence, children }: {
         </div>
         <div className={`text-xs border rounded px-2 py-1 text-right ${CONF_COLOR[confidence] ?? CONF_COLOR.none}`}>
           <div className="font-semibold">{CONFIDENCE_LABEL[confidence] ?? confidence}</div>
-          <div className="tabular-nums">n = {sample} jugadas</div>
+          <div className="tabular-nums">Basado en {sample} jugadas</div>
         </div>
       </header>
       {children}
@@ -84,7 +85,7 @@ export default function App() {
           <h1 className="text-xl font-black tracking-tight text-white">
             MATCHUP <span className="text-accent">CENTER</span>
           </h1>
-          <p className="text-xs text-slate-400">Tendencias históricas en jugadas de pase · NFL Big Data Bowl</p>
+          <p className="text-xs text-slate-400">Asistente de preparación táctica · tendencias históricas de pases NFL</p>
         </div>
       </header>
 
@@ -141,25 +142,74 @@ export function Result({ data }: { data: MatchupResponse }) {
         </div>
       )}
 
+      <TacticalSummary data={data} />
       <Warnings warnings={data.warnings} />
 
       <section aria-label="Señales tácticas">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-2">Señales tácticas</h2>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-2">Señales estadísticas</h2>
+        <p className="text-xs text-slate-500 mb-2">Se muestran como evidencia histórica complementaria; el resumen superior las traduce a preparación táctica.</p>
         <Signals signals={matchup.signals ?? []} />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Ofensiva" team={offense.team} sample={offense.sample_size} confidence={offense.confidence}>
-          <RateRow label="Play action" hint="% de jugadas con play action" m={om.play_action_rate} />
-          <RateRow label="Presión recibida" hint="hit, hurry o sack" m={om.pressure_received_rate} />
-          <RateRow label="Sacks recibidos" m={om.sack_received_rate} />
-          <RateRow label="Pases completos" hint="completos / intentos" m={om.completion_rate} />
-          <ValueRow label="Yardas por dropback" unit="yd" m={om.yards_per_dropback} />
+          <RateRow
+            label="Play action"
+            hint="Frecuencia histórica de engaño de carrera antes del pase."
+            meaning="Porcentaje de jugadas de pase con play action registrado por PFF."
+            consideration="Preparar respuestas al play action solo si la estimación y su rango de incertidumbre justifican atención adicional."
+            m={om.play_action_rate}
+          />
+          <RateRow
+            label="Presión sobre el QB ofensivo"
+            hint="Qué tan seguido el mariscal enfrenta un hit, hurry o sack."
+            meaning="Porcentaje de jugadas con al menos un hit, hurry o sack PFF contra la ofensiva."
+            consideration="Si está por encima de liga, revisar protecciones y opciones de liberación rápida sin asumir una presión segura."
+            m={om.pressure_received_rate}
+          />
+          <RateRow
+            label="Sacks recibidos"
+            hint="Capturas registradas en la jugada."
+            meaning="Porcentaje de dropbacks con passResult = sack."
+            consideration="Usarlo junto con presión y video para priorizar contingencias de protección."
+            m={om.sack_received_rate}
+          />
+          <RateRow
+            label="Pases completos"
+            hint="Completos entre intentos de pase registrados."
+            meaning="Porcentaje de completos entre pases completos, incompletos e intercepciones."
+            consideration="Es contexto histórico del resultado, no una probabilidad garantizada del siguiente pase."
+            m={om.completion_rate}
+          />
+          <ValueRow
+            label="Yardas por dropback"
+            unit="yd"
+            meaning="Promedio de playResult por jugada de pase; incluye el resultado registrado de penalizaciones."
+            consideration="Comparar con liga como señal descriptiva, no como EPA ni como causalidad."
+            m={om.yards_per_dropback}
+          />
         </Panel>
         <Panel title="Defensiva" team={defense.team} sample={defense.sample_size} confidence={defense.confidence}>
-          <RateRow label="Presión generada" hint="hit, hurry o sack" m={dm.pressure_generated_rate} />
-          <RateRow label="Sacks generados" m={dm.sack_generated_rate} />
-          <ValueRow label="Defensores en la caja (promedio)" m={dm.defenders_in_box} />
+          <RateRow
+            label="Presión generada por la defensa"
+            hint="Qué tan seguido esta defensa presiona al mariscal rival."
+            meaning="Porcentaje de jugadas con al menos un hit, hurry o sack PFF generado por la defensa."
+            consideration="Si está por encima de liga, revisar reglas de protección y alternativas de liberación rápida."
+            m={dm.pressure_generated_rate}
+          />
+          <RateRow
+            label="Sacks generados"
+            hint="Capturas registradas en jugadas contra esta defensa."
+            meaning="Porcentaje de dropbacks rivales con passResult = sack."
+            consideration="Complementarlo con la tasa de presión: una muestra corta no prueba que una captura sea inevitable."
+            m={dm.sack_generated_rate}
+          />
+          <ValueRow
+            label="Defensores en la caja (promedio)"
+            meaning="Promedio de defensores alineados cerca de la línea de golpeo antes del snap."
+            consideration="Úsalo como contexto de alineación, no como una llamada defensiva confirmada."
+            m={dm.defenders_in_box}
+          />
         </Panel>
       </div>
 
@@ -168,7 +218,13 @@ export function Result({ data }: { data: MatchupResponse }) {
           <DistributionChart title="Formaciones ofensivas" teamLabel={offense.team} dist={offense.formation_distribution} />
         </div>
         <div className="bg-ink-800 border border-ink-700 rounded p-4">
-          <DistributionChart title="Cobertura defensiva: Man vs Zone" teamLabel={defense.team} dist={defense.coverage_distribution} accent="#38BDF8" />
+          <DistributionChart
+            title="Cobertura defensiva: Man vs Zone"
+            teamLabel={defense.team}
+            dist={defense.coverage_distribution}
+            accent="#38BDF8"
+            note="Las coberturas PFF son observaciones históricas etiquetadas después de la jugada; no se conocen con certeza antes del snap."
+          />
         </div>
         <div className="bg-ink-800 border border-ink-700 rounded p-4">
           <PressureChart
@@ -182,6 +238,18 @@ export function Result({ data }: { data: MatchupResponse }) {
           <PlayActionChart offense={offense.team} m={om.play_action_rate} />
         </div>
       </section>
+
+      <CoachingConsiderations data={data} />
+
+      <details className="border border-ink-700 rounded p-4 text-sm text-slate-300">
+        <summary className="cursor-pointer font-semibold text-white">Cómo leer la evidencia y las estimaciones</summary>
+        <div className="mt-3 space-y-2 text-sm text-slate-400">
+          <p><strong className="text-slate-200">Estimación ajustada:</strong> combina la frecuencia observada del equipo con la referencia de liga del mismo contexto para no sobrerreaccionar a muestras pequeñas.</p>
+          <p><strong className="text-slate-200">Rango de incertidumbre (80%):</strong> muestra el rango compatible con los datos y el modelo. Un rango amplio implica más incertidumbre.</p>
+          <p><strong className="text-slate-200">Confiabilidad:</strong> considera cantidad de jugadas, ancho del rango de incertidumbre e influencia del prior de liga. Las señales limitadas deben usarse para revisar video y preparar contingencias.</p>
+          <p><strong className="text-slate-200">Alcance:</strong> el análisis incluye solo jugadas de pase de las semanas 1 a 8 de 2021. Describe asociaciones históricas; no establece causalidad ni garantiza comportamiento futuro.</p>
+        </div>
+      </details>
 
       <footer className="text-xs text-slate-500 border-t border-ink-700 pt-4">
         <p>{matchup.method}</p>

@@ -34,11 +34,12 @@ function toRows(d: Distribution): Row[] {
 }
 
 // Gráfica de barras: estimación bayesiana del equipo (con intervalo creíble 80%) vs referencia de liga
-export function DistributionChart({ title, teamLabel, dist, accent = TEAM_COLOR }: {
+export function DistributionChart({ title, teamLabel, dist, accent = TEAM_COLOR, note }: {
   title: string
   teamLabel: string
   dist: Distribution | undefined
   accent?: string
+  note?: string
 }) {
   const d: Distribution = dist ?? { status: 'not_available', sample_size: 0, categories: [] }
   const rows = toRows(d)
@@ -48,7 +49,8 @@ export function DistributionChart({ title, teamLabel, dist, accent = TEAM_COLOR 
       <figcaption className="mb-2">
         <h3 className="text-sm font-semibold text-white">{title}</h3>
         <p className="text-xs text-slate-400">
-          {teamLabel} · n = {d.sample_size ?? 0} jugadas · barras: media posterior · línea: intervalo creíble 80%
+          {teamLabel} · basado en {d.sample_size ?? 0} jugadas · barras: estimación ajustada · bigotes: rango de incertidumbre (80%) · gris: liga
+          {note && <span className="block mt-1 text-warn">{note}</span>}
         </p>
       </figcaption>
       {!hasData ? (
@@ -58,7 +60,7 @@ export function DistributionChart({ title, teamLabel, dist, accent = TEAM_COLOR 
       ) : (
         <>
           {d.status === 'insufficient_data' && (
-            <p className="text-xs text-warn mb-1">Muestra menor a 10 jugadas: interpretar con cautela.</p>
+            <p className="text-xs text-warn mb-1"><strong>Evidencia insuficiente para establecer una tendencia táctica confiable.</strong> La muestra es menor a 10 jugadas.</p>
           )}
           <div className="h-60" role="img" aria-label={title}>
             <ResponsiveContainer width="100%" height="100%">
@@ -89,12 +91,13 @@ export function DistributionChart({ title, teamLabel, dist, accent = TEAM_COLOR 
           <ul className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-xs text-slate-400 list-none p-0">
             {rows.map((r) => (
               <li key={r.name}>
-                <span className="text-slate-200">{r.name}</span> · {r.count} jug.
+                <span className="text-slate-200">{r.name}</span> · observado: {r.count} jug.
                 <br />
-                IC80: {pct(r.lower, 0)}–{pct(r.upper, 0)}
+                Ajustado: {pct(r.equipo, 0)} · incertidumbre: {pct(r.lower, 0)}–{pct(r.upper, 0)}
               </li>
             ))}
           </ul>
+          <p className="text-[11px] text-slate-500 mt-2">Una categoría con 0 jugadas observadas puede conservar una estimación ajustada por la referencia de liga; no representa una tendencia confirmada del equipo.</p>
         </>
       )}
     </figure>
@@ -131,7 +134,8 @@ export function PressureChart({ offTeam, defTeam, offense, defense }: {
       <figcaption className="mb-2">
         <h3 className="text-sm font-semibold text-white">Presión sobre el mariscal</h3>
         <p className="text-xs text-slate-400">
-          % de jugadas con hit, hurry o sack · n = {nO} ({offTeam}) y {nD} ({defTeam}) · línea: IC 80%
+          {offTeam}: frecuencia histórica con que su QB enfrenta hit, hurry o sack. {defTeam}: frecuencia histórica con que presiona al QB rival.
+          <br />Basado en {nO} jugadas ({offTeam}) y {nD} ({defTeam}) · barra: estimación ajustada · bigotes: rango de incertidumbre (80%) · gris: liga.
         </p>
       </figcaption>
       {!ok(offense) && !ok(defense) ? (
@@ -186,7 +190,8 @@ export function PlayActionChart({ offense, m }: { offense: string; m: RateMetric
       <figcaption className="mb-2">
         <h3 className="text-sm font-semibold text-white">Frecuencia de play action</h3>
         <p className="text-xs text-slate-400">
-          {offense} · n = {m?.denominator ?? 0} jugadas · liga n = {m?.league_reference?.sample_size ?? 0} · línea: IC 80%
+          {offense} · basado en {m?.denominator ?? 0} jugadas · liga: {m?.league_reference?.sample_size ?? 0} jugadas
+          <br />Barra: estimación ajustada · bigotes: rango de incertidumbre (80%) · gris: liga.
         </p>
       </figcaption>
       {mean == null ? (
