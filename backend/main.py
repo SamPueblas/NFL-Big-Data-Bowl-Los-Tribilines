@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.staticfiles import StaticFiles
 
 from backend.analytics import MatchupAnalytics, TEAM_CODES
 
@@ -12,6 +14,7 @@ app = FastAPI(title="Hackathon NFL UNAM")
 DISTANCES = {"all", "short", "standard", "long"}
 FIELD_ZONES = {"red_zone", "opponent_territory", "own_territory", "backed_up"}
 SCORE_STATES = {"trailing", "close", "leading"}
+DASHBOARD_DIST = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
 
 
 @lru_cache(maxsize=1)
@@ -106,3 +109,9 @@ def get_matchup(
         score_state=score_state,
         last_two_minutes=last_two_minutes_value,
     )
+
+
+# Mount last so /health and /api/... always take precedence over static files.
+# During development dist may not exist because Vite serves the frontend itself.
+if DASHBOARD_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=str(DASHBOARD_DIST), html=True), name="dashboard")
